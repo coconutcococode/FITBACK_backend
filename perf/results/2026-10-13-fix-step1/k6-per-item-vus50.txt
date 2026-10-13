@@ -1,0 +1,54 @@
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/88\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/88\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/100\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/100\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/90\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/99\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/93\": request timeout"
+time="2026-10-13T14:12:27+09:00" level=warning msg="Request Failed" error="Get \"http://127.0.0.1:18081/api/v1/analyses/100\": request timeout"
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{scenario:detail}
+    ✓ 'max>=0' max=1m0s
+
+    http_req_failed{scenario:detail}
+    ✓ 'rate>=0' rate=97.82%
+
+    http_reqs{scenario:detail}
+    ✓ 'count>=0' count=92
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 184    2.821795/s
+    checks_succeeded...: 2.17%  4 out of 184
+    checks_failed......: 97.82% 180 out of 184
+
+    ✗ status is 200
+      ↳  2% — ✓ 2 / ✗ 90
+    ✗ all items resolved
+      ↳  2% — ✓ 2 / ✗ 90
+
+    HTTP
+    http_req_duration..............: avg=32.41s min=124.05ms med=30.05s p(90)=34.03s p(95)=1m0s   p(99)=1m0s   max=1m0s  
+      { expected_response:true }...: avg=23.39s min=124.05ms med=35.02s p(90)=35.03s p(95)=35.03s p(99)=35.03s max=35.03s
+      { scenario:detail }..........: avg=32.76s min=30.03s   med=30.05s p(90)=34.52s p(95)=1m0s   p(99)=1m0s   max=1m0s  
+    http_req_failed................: 96.77% 90 out of 93
+      { scenario:detail }..........: 97.82% 90 out of 92
+    http_reqs......................: 93     1.426234/s
+      { scenario:detail }..........: 92     1.410898/s
+
+    EXECUTION
+    iteration_duration.............: avg=32.76s min=30.03s   med=30.05s p(90)=34.53s p(95)=1m0s   p(99)=1m0s   max=1m0s  
+    iterations.....................: 92     1.410898/s
+    vus............................: 2      min=2        max=50
+    vus_max........................: 50     min=50       max=50
+
+    NETWORK
+    data_received..................: 54 kB  828 B/s
+    data_sent......................: 38 kB  580 B/s
+
+
+

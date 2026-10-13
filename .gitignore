@@ -61,3 +61,8 @@ out/
 
 ### Local planning documents ###
 /docs/RECOMMENDATION_PRODUCT_ROADMAP.md
+
+### Perf benchmark ###
+perf/.bench-report-id
+perf/results/*/app-*.log
+__pycache__/

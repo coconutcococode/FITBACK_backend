@@ -1,0 +1,44 @@
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{scenario:detail}
+    ✓ 'max>=0' max=630.64ms
+
+    http_req_failed{scenario:detail}
+    ✓ 'rate>=0' rate=0.00%
+
+    http_reqs{scenario:detail}
+    ✓ 'count>=0' count=122183
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 244366  4063.762926/s
+    checks_succeeded...: 100.00% 244366 out of 244366
+    checks_failed......: 0.00%   0 out of 244366
+
+    ✓ status is 200
+    ✓ all items resolved
+
+    HTTP
+    http_req_duration..............: avg=24.39ms min=1.88ms med=12.09ms p(90)=39.1ms  p(95)=53.75ms p(99)=522.84ms max=630.64ms
+      { expected_response:true }...: avg=24.39ms min=1.88ms med=12.09ms p(90)=39.1ms  p(95)=53.75ms p(99)=522.84ms max=630.64ms
+      { scenario:detail }..........: avg=24.39ms min=1.88ms med=12.09ms p(90)=39.1ms  p(95)=53.74ms p(99)=522.84ms max=630.64ms
+    http_req_failed................: 0.00%  0 out of 122184
+      { scenario:detail }..........: 0.00%  0 out of 122183
+    http_reqs......................: 122184 2031.898093/s
+      { scenario:detail }..........: 122183 2031.881463/s
+
+    EXECUTION
+    iteration_duration.............: avg=24.55ms min=1.98ms med=12.25ms p(90)=39.27ms p(95)=53.94ms p(99)=523ms    max=630.85ms
+    iterations.....................: 122183 2031.881463/s
+    vus............................: 50     min=50          max=50
+    vus_max........................: 50     min=50          max=50
+
+    NETWORK
+    data_received..................: 681 MB 11 MB/s
+    data_sent......................: 50 MB  833 kB/s
+
+
+

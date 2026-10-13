@@ -27,7 +27,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -38,49 +40,62 @@ public class RecommendationQueryService implements RecommendationResultProvider 
     private final ProductResponseMapper productResponseMapper;
     private final ProductDetailService productDetailService;
     private final SavedProductRepository savedProductRepository;
+    private final TransactionTemplate readOnlyTransaction;
 
     public RecommendationQueryService(
             AnalysisReportRepository analysisReportRepository,
             RecommendedItemRepository recommendedItemRepository,
             ProductResponseMapper productResponseMapper,
             ProductDetailService productDetailService,
-            SavedProductRepository savedProductRepository
+            SavedProductRepository savedProductRepository,
+            PlatformTransactionManager transactionManager
     ) {
         this.analysisReportRepository = analysisReportRepository;
         this.recommendedItemRepository = recommendedItemRepository;
         this.productResponseMapper = productResponseMapper;
         this.productDetailService = productDetailService;
         this.savedProductRepository = savedProductRepository;
+        this.readOnlyTransaction = new TransactionTemplate(transactionManager);
+        this.readOnlyTransaction.setReadOnly(true);
     }
 
     @Override
     public RecommendationResultResponse findFor(AnalysisReport report) {
-        List<RecommendedItem> items = report.getRecommendationGeneratedAt() == null
-                ? List.of()
-                : recommendedItemRepository
-                        .findByReportIdOrderByCategoryAscRankNoAsc(report.getId());
-        Long memberId = items.isEmpty() ? null : report.getMember().getId();
-        return result(report, items, memberId);
+        StoredRecommendation stored = readOnlyTransaction.execute(status -> {
+            List<RecommendedItem> items = findItems(report);
+            Long memberId = items.isEmpty() ? null : report.getMember().getId();
+            return new StoredRecommendation(report, items, findSavedProductIds(memberId, items));
+        });
+        return result(stored);
     }
 
     public RecommendationResultResponse findByReportId(Long memberId, Long reportId) {
-        AnalysisReport report = analysisReportRepository
-                .findByIdAndMemberIdAndDeletedAtIsNull(reportId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_REPORT_NOT_FOUND));
-        List<RecommendedItem> items = report.getRecommendationGeneratedAt() == null
+        StoredRecommendation stored = readOnlyTransaction.execute(status -> {
+            AnalysisReport report = analysisReportRepository
+                    .findByIdAndMemberIdAndDeletedAtIsNull(reportId, memberId)
+                    .orElseThrow(() -> new BusinessException(
+                            ErrorCode.ANALYSIS_REPORT_NOT_FOUND
+                    ));
+            List<RecommendedItem> items = findItems(report);
+            return new StoredRecommendation(report, items, findSavedProductIds(memberId, items));
+        });
+        return result(stored);
+    }
+
+    private List<RecommendedItem> findItems(AnalysisReport report) {
+        return report.getRecommendationGeneratedAt() == null
                 ? List.of()
                 : recommendedItemRepository
                         .findByReportIdOrderByCategoryAscRankNoAsc(report.getId());
-        return result(report, items, memberId);
     }
 
-    private RecommendationResultResponse result(
-            AnalysisReport report,
-            List<RecommendedItem> items,
-            Long memberId
-    ) {
+    // DB에서 읽을 값은 위의 짧은 트랜잭션에서 모두 꺼내 두고, 외부 공급자 조회는 트랜잭션과
+    // 영속성 컨텍스트 밖에서 실행해 응답을 기다리는 동안 DB 커넥션을 쥐고 있지 않는다.
+    private RecommendationResultResponse result(StoredRecommendation stored) {
+        AnalysisReport report = stored.report();
+        List<RecommendedItem> items = stored.items();
         RecommendationStatus status = status(report);
-        Set<Long> savedProductIds = findSavedProductIds(memberId, items);
+        Set<Long> savedProductIds = stored.savedProductIds();
         Set<String> warnings = new TreeSet<>();
         List<RecommendedItem> responseOrderedItems = responseOrderItems(items);
         ProductDetailBatchResult batchResult = productDetailService.lookupIdentityOnlyDetails(
@@ -228,5 +243,12 @@ public class RecommendationQueryService implements RecommendationResultProvider 
         return report.hasRecommendationInputRevision(report.getResultInputRevision())
                 ? RecommendationStatus.CURRENT
                 : RecommendationStatus.STALE;
+    }
+
+    private record StoredRecommendation(
+            AnalysisReport report,
+            List<RecommendedItem> items,
+            Set<Long> savedProductIds
+    ) {
     }
 }

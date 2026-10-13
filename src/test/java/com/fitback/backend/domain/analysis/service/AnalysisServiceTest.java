@@ -3,6 +3,7 @@ package com.fitback.backend.domain.analysis.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -79,6 +82,9 @@ class AnalysisServiceTest {
             ZoneOffset.UTC
     );
 
+    @Mock
+    private PlatformTransactionManager transactionManager;
+
     private AnalysisService analysisService;
 
     @BeforeEach
@@ -92,7 +98,8 @@ class AnalysisServiceTest {
                 imageUploadService,
                 analysisReportSaveService,
                 eventPublisher,
-                clock
+                clock,
+                transactionManager
         );
     }
 
@@ -305,6 +312,10 @@ class AnalysisServiceTest {
         assertThat(response.recommendationGroups()).containsExactly(recommendationGroup);
         assertThat(response.saved()).isFalse();
         assertThat(response.selectedItems()).isEmpty();
+        // 외부 공급자를 호출하는 추천 결과 조회는 DB 트랜잭션을 끝낸 뒤에 실행한다.
+        InOrder inOrder = inOrder(transactionManager, recommendationResultProvider);
+        inOrder.verify(transactionManager).commit(any());
+        inOrder.verify(recommendationResultProvider).findFor(report);
     }
 
     @Test

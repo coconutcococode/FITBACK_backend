@@ -25,9 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -46,6 +48,7 @@ public class AnalysisService {
     private final AnalysisReportSaveService analysisReportSaveService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final PlatformTransactionManager transactionManager;
 
     @Transactional
     public AnalysisCreateResponse create(Long memberId, MultipartFile image) {
@@ -116,10 +119,20 @@ public class AnalysisService {
         );
     }
 
-    @Transactional(readOnly = true)
     public AnalysisDetailResponse getReport(Long memberId, Long reportId) {
-        AnalysisReport report = findOwnedReport(memberId, reportId);
-        return toDetailResponse(report, recommendationResultProvider.findFor(report));
+        // 추천 상품 상세는 외부 공급자를 실시간으로 조회하므로, DB에서 읽을 값은 짧은 트랜잭션에서
+        // 먼저 꺼내고 추천 결과는 트랜잭션 밖에서 조회해 외부 호출 동안 커넥션을 쥐고 있지 않는다.
+        LoadedReport loaded = readOnlyTransaction().execute(status -> {
+            AnalysisReport report = findOwnedReport(memberId, reportId);
+            return new LoadedReport(
+                    report,
+                    recommendationTagNames(report),
+                    report.getOriginalImage() == null ? null : report.getOriginalImage().getId(),
+                    resolveImageUrl(report),
+                    analysisReportSaveService.getState(report.getMember().getId(), report.getId())
+            );
+        });
+        return toDetailResponse(loaded, recommendationResultProvider.findFor(loaded.report()));
     }
 
     @Transactional
@@ -140,18 +153,17 @@ public class AnalysisService {
     }
 
     private AnalysisDetailResponse toDetailResponse(
-            AnalysisReport report,
+            LoadedReport loaded,
             RecommendationResultResponse recommendationResult
     ) {
-        List<String> tagNames = recommendationTagNames(report);
-        AnalysisReportSaveService.SavedState savedState =
-                analysisReportSaveService.getState(report.getMember().getId(), report.getId());
+        AnalysisReport report = loaded.report();
+        AnalysisReportSaveService.SavedState savedState = loaded.savedState();
         return new AnalysisDetailResponse(
                 report.getId(),
-                report.getOriginalImage() == null ? null : report.getOriginalImage().getId(),
-                resolveImageUrl(report),
+                loaded.originalImageId(),
+                loaded.imageUrl(),
                 report.getMatchPercentage(),
-                tagNames,
+                loaded.tagNames(),
                 recommendationResult.recommendationStatus(),
                 recommendationResult.scoreVersion(),
                 recommendationResult.recommendationGroups(),
@@ -159,6 +171,21 @@ public class AnalysisService {
                 savedState.savedAt(),
                 savedState.selectedItems()
         );
+    }
+
+    private TransactionTemplate readOnlyTransaction() {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setReadOnly(true);
+        return template;
+    }
+
+    private record LoadedReport(
+            AnalysisReport report,
+            List<String> tagNames,
+            String originalImageId,
+            String imageUrl,
+            AnalysisReportSaveService.SavedState savedState
+    ) {
     }
 
     private List<String> recommendationTagNames(AnalysisReport report) {

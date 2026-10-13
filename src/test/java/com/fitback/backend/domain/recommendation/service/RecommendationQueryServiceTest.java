@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 
 class RecommendationQueryServiceTest {
 
@@ -50,7 +51,8 @@ class RecommendationQueryServiceTest {
             recommendedItemRepository,
             mock(ProductResponseMapper.class),
             productDetailService,
-            savedProductRepository
+            savedProductRepository,
+            mock(PlatformTransactionManager.class)
     );
 
     @Test
